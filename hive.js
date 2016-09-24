@@ -38,6 +38,9 @@ let Hive = {
         // Clear dead creeps from Memory
         for (let n in Memory.creeps) {
             if (!Game.creeps[n]) {
+				if (Memory.creeps[n]["task"] != null)
+					delete Memory.creeps[n]["task"]["memory"][n];				
+					
                 delete Memory.creeps[n];
             }
         }

@@ -5,6 +5,14 @@
 		... maybe store creeps on that task in the actual target object
 		... and when running the task, check to see it the creeps in that object's memory > task.creeps
 		... and if so, delete the task from the stack?
+		DONE:
+			- adding "memory" field to tasks
+			- setting "task.memory.creepname" true on giveTask
+			- deleting "task.memory.creepname" on creep death
+		NEEDS DOING:
+			- deleting "task.memory.creepname" on creep completion of task
+			- deleting "task.memory.creepname" on task completion (e.g. construction site done)
+			
 
 
 - CPU Profiler

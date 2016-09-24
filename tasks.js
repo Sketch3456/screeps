@@ -29,11 +29,17 @@ module.exports = {
             return v.toString(16);
             });
 		
+		if (incTask.memory == null) {
+			incTask.creeps = Math.max(0, incTask.creeps - Object.keys(incTask.memory).length);
+		}
+		
         Memory["rooms"][rmName]["tasks"][index] = incTask;
 	},
 
 	giveTask: function(creep, task) {        
         creep.memory.task = task;
+		
+		_.set(task["memory"][creep.name], true);
 		
 		if (task["creeps"] != null)
             task["creeps"] -= 1;
@@ -311,6 +317,7 @@ module.exports = {
         var structures;
         let __Colony = require("util.colony");
         let room = Game.rooms[rmName];
+		let mem_path = Memory["rooms"][rmName]["tasks_running"];
 
         /* Worker-based tasks (upgrading controllers, building and maintaining structures) */
         if (room.controller != null && room.controller.level > 0) {
@@ -320,6 +327,7 @@ module.exports = {
                         subtype: "upgrade",
                         id: room.controller.id,
                         pos: room.controller.pos,
+						memory: mem_path[`work:upgrade-${room.controller.id}`],
                         timer: 20,
                         creeps: 15,
                         priority: 1
@@ -330,6 +338,7 @@ module.exports = {
                         subtype: "upgrade",
                         id: room.controller.id,
                         pos: room.controller.pos,
+						memory: mem_path[`work:upgrade-${room.controller.id}`],
                         timer: 20,
                         creeps: 20,
                         priority: 5
@@ -344,6 +353,7 @@ module.exports = {
                     subtype: "repair",
                     id: structures[i].id,
                     pos: structures[i].pos,
+					memory: mem_path[`work:repair-${structures[i].id}`],
                     timer: 20,
                     creeps: 2,
                     priority: 2
@@ -357,6 +367,7 @@ module.exports = {
                     subtype: "repair",
                     id: structures[i].id,
                     pos: structures[i].pos,
+					memory: mem_path[`work:repair-${structures[i].id}`],
                     timer: 20,
                     creeps: 2,
                     priority: 6
@@ -370,6 +381,7 @@ module.exports = {
                     subtype: "build",
                     id: structures[i].id,
                     pos: structures[i].pos,
+					memory: mem_path[`work:build-${structures[i].id}`],
                     timer: 30,
                     creeps: 3,
                     priority: 3
@@ -385,6 +397,7 @@ module.exports = {
                     resource: piles[i].resourceType == "energy" ? "energy" : "mineral",
                     id: piles[i].id,
                     pos: piles[i].pos,
+					memory: mem_path[`carry:pickup-${piles[i].id}`],
                     timer: 15, 
                     creeps: Math.ceil(piles[i].amount / 1000),
                     priority: 1
@@ -401,6 +414,7 @@ module.exports = {
                     resource: "energy",
                     id: sources[i].id,
                     pos: (container != null ? container.pos : sources[i].pos),
+					memory: mem_path[`mine:harvest-${sources[i].id}`],
                     timer: 15,
                     creeps: 2,
                     priority: 1
@@ -418,6 +432,7 @@ module.exports = {
                             resource: "mineral",
                             id: minerals[i].id,
                             pos: minerals[i].pos,
+							memory: mem_path[`mine:harvest-${minerals[i].id}`],
                             timer: 20,
                             creeps: 2,
                             priority: 2
@@ -438,6 +453,7 @@ module.exports = {
                         resource: "energy",
                         id: storages[i].id,
                         pos: storages[i].pos,
+						memory: mem_path[`energy:withdraw-${storages[i].id}`],
                         timer: 10,
                         creeps: Math.ceil(storages[i].store["energy"] / 1000),
                         priority: 3
@@ -451,6 +467,7 @@ module.exports = {
                         resource: "energy",
                         id: storages[i].id,
                         pos: storages[i].pos,
+						memory: mem_path[`carry:deposit-${storages[i].id}`],
                         timer: 20,
                         creeps: 10,
                         priority: (storages[i].structureType == "container" ? 9 : 8)
@@ -462,6 +479,7 @@ module.exports = {
                         resource: "mineral",
                         id: storages[i].id,
                         pos: storages[i].pos,
+						memory: mem_path[`carry:deposit-${storages[i].id}`],
                         timer: 20,
                         creeps: 10,
                         priority: (storages[i].structureType == "container" ? 9 : 8)
@@ -481,6 +499,7 @@ module.exports = {
                         resource: "energy",
                         id: links[l]["id"],
                         pos: link.pos,
+						memory: mem_path[`carry:deposit-${links[l]["id"]}`],
                         timer: 20,
                         creeps: 1,
                         priority: 3
@@ -493,6 +512,7 @@ module.exports = {
                         resource: "energy",
                         id: links[l]["id"],
                         pos: link.pos,
+						memory: mem_path[`energy:withdraw-${links[l]["id"]}`],
                         timer: 5,
                         creeps: 2,
                         priority: 3
@@ -508,10 +528,11 @@ module.exports = {
                 this.addTask(rmName, 
                 {   type: "carry",
                     subtype: "deposit",                    
-                    resource: "energy",
-                    id: towers[i].id,
-                    pos: towers[i].pos,
-                    structure: towers[i].structureType,
+                    structure: "tower",
+					resource: "energy",                    
+					id: towers[i].id,
+                    pos: towers[i].pos,                    
+					memory: mem_path[`carry:deposit-${towers[i].id}`],
                     timer: 30,
                     creeps: 1,
                     priority: 1 
@@ -520,10 +541,11 @@ module.exports = {
                 this.addTask(rmName, 
                 {   type: "carry",
                     subtype: "deposit",
-                    resource: "energy",
-                    id: towers[i].id,
-                    pos: towers[i].pos,
-                    structure: towers[i].structureType,
+                    structure: "tower",
+					resource: "energy",                    
+					id: towers[i].id,
+                    pos: towers[i].pos,                    
+					memory: mem_path[`carry:deposit-${towers[i].id}`],
                     timer: 30,
                     creeps: 1,
                     priority: 5
@@ -538,32 +560,15 @@ module.exports = {
                 this.addTask(rmName, 
                 {   type: "carry",
                     subtype: "deposit",
-                    resource: "energy",
+                    structure: structures[i].structureType,
+					resource: "energy",
                     id: structures[i].id,
                     pos: structures[i].pos,
-                    structure: structures[i].structureType,
+                    memory: mem_path[`carry:deposit-${structures[i].id}`],
                     timer: 20,
                     creeps: 1,
                     priority: 2 
                 });
-        }
-
-        /* Cycle through tasks and creeps in the room- iterate task["creeps"] downwards if taken! */
-		for (let t in Memory["rooms"][rmName]["tasks"]) {
-			let task = Memory["rooms"][rmName]["tasks"][t];
-			if (task["creeps"] != null) {
-				for (let c in Game.creeps) {
-					if (Game.creeps[c].room.name == rmName) {
-						let creep = Game.creeps[c];
-						if (creep.memory.task != null
-								&& creep.memory.task.type == task.type && creep.memory.task.subtype == task.subtype
-								&& creep.memory.task.id == task.id && creep.memory.task.structure == task.structure
-								&& creep.memory.task.resource == task.resource) {
-							task["creeps"] -= 1;
-						}
-					}
-				}				
-			}
-		}  
+        }        
 	}
 }
