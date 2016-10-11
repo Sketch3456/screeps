@@ -2,6 +2,7 @@ let Roles = require("roles");
 let Hive = require("hive");
 let Tasks = require("tasks");
 
+let _Creep = require("util.creep");
 let _CPU = require("util.cpu");
 
 module.exports = {
@@ -16,16 +17,17 @@ module.exports = {
 				Memory["terminal_orders"][""] = { market_id: "", amount: , to: "", priority: 4};
 		*/
 		 
-	
-		_CPU.Start(rmColony, "Industry-runPopulation");
-		this.runPopulation(rmColony, spawnDistance, listPopulation);
-		_CPU.End(rmColony, "Industry-runPopulation");
+		if (Hive.isPulse_Spawn()) {
+			_CPU.Start(rmColony, "Industry-runPopulation");
+			this.runPopulation(rmColony, spawnDistance, listPopulation);
+			_CPU.End(rmColony, "Industry-runPopulation");
+		}
 		
 		_CPU.Start(rmColony, "Industry-runLabs");
 		this.runLabs(rmColony, listLabs);
 		_CPU.End(rmColony, "Industry-runLabs");
 		
-		if (Hive.isPulse()) {
+		if (Hive.isPulse_Main()) {
 			_CPU.Start(rmColony, "Industry-createLabTasks");
 			this.createLabTasks(rmColony, listLabs);
 			_CPU.End(rmColony, "Industry-createLabTasks");
@@ -41,8 +43,7 @@ module.exports = {
 	},
 	
 	
-	runPopulation: function(rmColony, spawnDistance, listPopulation) {
-		
+	runPopulation: function(rmColony, spawnDistance, listPopulation) {		
 		let lCourier  = _.filter(Game.creeps, (c) => c.memory.role == "courier" && c.memory.room == rmColony && (c.ticksToLive == undefined || c.ticksToLive > 80));
 
         let popTarget = (listPopulation["courier"] == null ? 0 : listPopulation["courier"]["amount"]);
@@ -59,12 +60,10 @@ module.exports = {
 		
 		/* Arguments for listLabs:
 			{ action: "boost", mineral: "", lab: "", role: "", subrole: "" }
-			{ action: "reaction", amount: -1,
-				reactor: {mineral: "", lab: ""}, 
-				supply1: {mineral: "", lab: ""}, 
-				supply2: {mineral: "", lab: ""} }
+			{ action: "reaction", amount: -1, mineral: "",
+			  reactor: "", supply1: "", supply2: "" }
 			{ action: "empty", lab: "" }			
-		*/		
+		*/				
 		
         for (let l in listLabs) {
             let listing = listLabs[l];
@@ -72,26 +71,25 @@ module.exports = {
                 default:
                     break;
 					
-				case "boost":
-					let _Creep = require("util.creep");
+				case "boost":					
 					let lab = Game.getObjectById(listing["lab"]);
 					let creeps = lab.pos.findInRange(FIND_MY_CREEPS, 1, 
 						{ filter: (c) => { return c.memory.role == listing["role"] 
 							&& c.memory.subrole == listing["subrole"]
-							&& c.ticksToLive > 1100 && !_Creep.isBoosted(c) }});
+							&& c.ticksToLive > 1100 && !c.isBoosted() }});
 					if (creeps.length > 0) {						
 						lab.boostCreep(creeps[0]);						
 					}
 					break;
 
                 case "reaction":
-                    let labReactor = Game.getObjectById(listing["reactor"]["lab"]);
-                    let labSupply1 = Game.getObjectById(listing["supply1"]["lab"]);
-                    let labSupply2 = Game.getObjectById(listing["supply2"]["lab"]);  
+                    let labReactor = Game.getObjectById(listing["reactor"]);
+                    let labSupply1 = Game.getObjectById(listing["supply1"]);
+                    let labSupply2 = Game.getObjectById(listing["supply2"]);  
                     
 					if (labReactor != null && labSupply1 != null && labSupply2 != null) {
 						if (listing["amount"] != null && listing["amount"] > 0) {
-							let mineral = listing["reactor"]["mineral"]
+							let mineral = listing["mineral"]
 							let amount = (Game.rooms[rmColony].storage.store[mineral] == null ? 0 : Game.rooms[rmColony].storage.store[mineral])
 									+ (Game.rooms[rmColony].terminal.store[mineral] == null ? 0 : Game.rooms[rmColony].terminal.store[mineral]);
 							if (amount > listing["amount"])
@@ -127,8 +125,9 @@ module.exports = {
 					
 					// Minimum amount necessary to boost 1x body part: 30 mineral & 20 energy
 					if (lab.mineralType == listing["mineral"] && lab.mineralAmount > 30 && lab.energy > 20) {
-						Tasks.addTask(rmColony, {   
-							type: "boost", subtype: "boost", role: listing["role"], subrole: listing["subrole"],
+						Tasks.addTask(rmColony, {
+							key: `boost:boost-${listing["mineral"]}-${lab.id}`, room: rmColony,
+							type: "boost", subtype: "boost", role: listing["role"], subrole: listing["subrole"], 
 							resource: listing["mineral"], id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 1 });	
 					}
 					
@@ -137,20 +136,25 @@ module.exports = {
 										
 					if (lab.mineralType != null && lab.mineralType != listing["mineral"]) {
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-${lab.mineralType}-${lab.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: lab.mineralType,
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 2 });
-					} else if (lab.energy < lab.energyCapacity * 0.75 && Object.keys(storage.store).includes("energy")) {
+					} else if (lab.energy < lab.energyCapacity * 0.75 && storage.store["energy"] > 0) {
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-energy-${storage.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: "energy", 
 							id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 3 });							
 						Tasks.addTask(rmColony, {   
+							key: `industry:deposit-energy-${lab.id}`, room: rmColony,
 							type: "industry", subtype: "deposit", resource: "energy",
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 3 });	
 					} else if (lab.mineralAmount < lab.mineralCapacity * 0.75 && Object.keys(storage.store).includes(listing["mineral"])) {
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-${listing["mineral"]}-${storage.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: listing["mineral"], 
 							id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 3 });							
 						Tasks.addTask(rmColony, {   
+							key: `industry:deposit-${listing["mineral"]}-${lab.id}`, room: rmColony,
 							type: "industry", subtype: "deposit", resource: listing["mineral"],
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 3 });								
 					}					
@@ -160,11 +164,13 @@ module.exports = {
 					lab = Game.getObjectById(listing["lab"]);
 					if (lab.mineralAmount > 0) {							
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-${lab.mineralType}-${listing["lab"]}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: lab.mineralType,
 							id: listing["lab"], pos: lab.pos, timer: 10, creeps: 8, priority: 2 });
 					}
 					if (lab.energy > 0) {							
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-energy-${listing["lab"]}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: "energy",
 							id: listing["lab"], pos: lab.pos, timer: 10, creeps: 8, priority: 3 });
 					}
@@ -173,51 +179,73 @@ module.exports = {
 				case "reaction":
 					storage = Game.rooms[rmColony].storage;
 					if (storage == null) break;			
-								 
-					lab = Game.getObjectById(listing["supply1"]["lab"]);
-					if (lab.mineralType != null && lab.mineralType != listing["supply1"]["mineral"]) {
-						Tasks.addTask(rmColony, {   
+					
+					let reagants = this.getReagents(listing["mineral"]);
+					let supply1_mineral = reagants[0];
+					let supply2_mineral = reagants[1];
+					
+					lab = Game.getObjectById(listing["supply1"]);
+					if (lab.mineralType != null && lab.mineralType != supply1_mineral) {
+						Tasks.addTask(rmColony, {
+							key: `industry:withdraw-${lab.mineralType}-${lab.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: lab.mineralType,
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 2 });
 					}
-					else if (Object.keys(storage.store).includes(listing["supply1"]["mineral"]) 
+					else if (Object.keys(storage.store).includes(supply1_mineral) 
 							&& lab.mineralAmount < lab.mineralCapacity * 0.2) {
 						Tasks.addTask(rmColony, {   
-							type: "industry", subtype: "withdraw", resource: listing["supply1"]["mineral"], 
+							key: `industry:withdraw-${supply1_mineral}-${storage.id}`, room: rmColony,
+							type: "industry", subtype: "withdraw", resource: supply1_mineral, 
 							id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 3 });							
 						Tasks.addTask(rmColony, {   
-							type: "industry", subtype: "deposit", resource: listing["supply1"]["mineral"], 
+							key: `industry:deposit-${supply1_mineral}-${lab.id}`, room: rmColony,
+							type: "industry", subtype: "deposit", resource: supply1_mineral, 
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 3 });
 					}
 					
-					lab = Game.getObjectById(listing["supply2"]["lab"]);
-					if (lab.mineralType != null && lab.mineralType != listing["supply2"]["mineral"]) {
+					lab = Game.getObjectById(listing["supply2"]);
+					if (lab.mineralType != null && lab.mineralType != supply2_mineral) {
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-${lab.mineralType}-${lab.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: lab.mineralType, 
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 2 });
 					}
-					else if (Object.keys(storage.store).includes(listing["supply2"]["mineral"]) 
+					else if (Object.keys(storage.store).includes(supply2_mineral) 
 							&& lab.mineralAmount < lab.mineralCapacity * 0.2) {
 						Tasks.addTask(rmColony, {   
-							type: "industry", subtype: "withdraw", resource: listing["supply2"]["mineral"], 
+							key: `industry:withdraw-${supply2_mineral}-${storage.id}`, room: rmColony,
+							type: "industry", subtype: "withdraw", resource: supply2_mineral, 
 							id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 3 });
 						Tasks.addTask(rmColony, {   
-							type: "industry", subtype: "deposit", resource: listing["supply2"]["mineral"], 
+							key: `industry:deposit-${supply2_mineral}-${lab.id}`, room: rmColony,
+							type: "industry", subtype: "deposit", resource: supply2_mineral, 
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 3 });
 					}
 
-					lab = Game.getObjectById(listing["reactor"]["lab"]);
-					if (lab.mineralType != null && lab.mineralType != listing["reactor"]["mineral"]) {						
+					lab = Game.getObjectById(listing["reactor"]);
+					if (lab.mineralType != null && lab.mineralType != listing["mineral"]) {						
 						Tasks.addTask(rmColony, {   
+							key: `industry:withdraw-${lab.mineralType}-${lab.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: lab.mineralType, 
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 2 });
 					} else if (lab.mineralAmount > lab.mineralCapacity * 0.8) {
 						Tasks.addTask(rmColony, {   
-							type: "industry", subtype: "withdraw", resource: listing["reactor"]["mineral"], 
+							key: `industry:withdraw-${listing["mineral"]}-${lab.id}`, room: rmColony,
+							type: "industry", subtype: "withdraw", resource: listing["mineral"], 
 							id: lab.id, pos: lab.pos, timer: 10, creeps: 8, priority: 2 });
 					}
 					
 					break;
+			}
+		}
+	},
+	
+	getReagents: function (mineral) {
+		for (let r1 in REACTIONS) {
+			for (let r2 in REACTIONS[r1]) {
+				if (REACTIONS[r1][r2] == mineral) {
+					return [r1, r2];
+				}
 			}
 		}
 	},
@@ -297,7 +325,7 @@ module.exports = {
 		if (order["market_id"] != null) {	// Sync market orders, update/find new if expired...
 			if (order["sync"] != Game.time) {
 				order["sync"] = Game.time;					
-				let sync = _.head(Game.market.getAllOrders(obj => obj.id == order["market_id"]));
+				let sync = Game.market.getOrderById(order["market_id"]);
 				
 				if (sync != null) {
 					order["market_item"] = sync;
@@ -377,9 +405,11 @@ module.exports = {
 				} else {
 					if (storage != null && storage.store["energy"] > 0) {
 						Tasks.addTask(rmColony, { 
+							key: `industry:withdraw-energy-${storage.id}`, room: rmColony,
 							type: "industry", subtype: "withdraw", resource: "energy", 
 							id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 5 });
 						Tasks.addTask(rmColony, { 
+							key: `industry:deposit-energy-${terminal.id}`, room: rmColony,
 							type: "industry", subtype: "deposit", resource: "energy", 
 							id: terminal.id, pos: terminal.pos, timer: 10, creeps: 8, priority: 5 });
 					} else if (res != "energy") {
@@ -392,10 +422,12 @@ module.exports = {
 				filling.push(res);
 				
 				Tasks.addTask(rmColony, { 
+					key: `industry:withdraw-${res}-${storage.id}`, room: rmColony,
 					type: "industry", subtype: "withdraw", resource: res, 
 					amount: Object.keys(shortage).includes(res) ? Math.abs(shortage[res] + 100) : null,
 					id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 5 });
 				Tasks.addTask(rmColony, { 
+					key: `industry:deposit-${res}-${terminal.id}`, room: rmColony,
 					type: "industry", subtype: "deposit", resource: res, 
 					id: terminal.id, pos: terminal.pos, timer: 10, creeps: 8, priority: 5 });					
 			}
@@ -439,9 +471,11 @@ module.exports = {
 				filling.push("energy");
 				
 				Tasks.addTask(rmColony, { 
+					key: `industry:withdraw-energy-${storage.id}`, room: rmColony,
 					type: "industry", subtype: "withdraw", resource: "energy", 
 					id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 5 });
 				Tasks.addTask(rmColony, { 
+					key: `industry:deposit-energy-${terminal.id}`, room: rmColony,
 					type: "industry", subtype: "deposit", resource: "energy", 
 					id: terminal.id, pos: terminal.pos, timer: 10, creeps: 8, priority: 5 });
 			} else if (res != "energy") {				
@@ -470,9 +504,11 @@ module.exports = {
 				continue;			
 			
 			Tasks.addTask(rmColony, { 
+				key: `industry:withdraw-${res}-${terminal.id}`, room: rmColony,
 				type: "industry", subtype: "withdraw", resource: res, 
 				id: terminal.id, pos: terminal.pos, timer: 10, creeps: 8, priority: 6 });
 			Tasks.addTask(rmColony, { 
+				key: `industry:deposit-${res}-${storage.id}`, room: rmColony,
 				type: "industry", subtype: "deposit", resource: res, 
 				id: storage.id, pos: storage.pos, timer: 10, creeps: 8, priority: 6 });			
 		}
