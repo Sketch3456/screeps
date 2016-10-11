@@ -34,45 +34,52 @@ module.exports.loop = function () {
 	Hive.moveExcessEnergy(200000);
 
 
-	/* Generic population definitions */
+	  /* Generic population definitions */
+    let Population__Colony_RCL8 = 
+        { worker:   {level: 7, amount: 1, scale_level: false},
+          repairer: {level: 5, amount: 1} };
+    let Population__Colony_Grow = 
+        { worker:   {level: 7, amount: 1},
+          repairer: {level: 5, amount: 1},
+          upgrader: {level: 7, amount: 2} };
+    let Population__Colony_Pace = 
+        { worker:   {level: 7, amount: 1},
+          repairer: {level: 5, amount: 1},
+          upgrader: {level: 7, amount: 1} };
+    let Population__Colony_Pump = 
+        { worker:   {level: 7, amount: 1},
+          repairer: {level: 5, amount: 1},
+          upgrader: {level: 7, amount: 4} };
+    let Population__Colony_Make = 
+        { worker:   {level: 7, amount: 2},
+          repairer: {level: 5, amount: 1},
+          upgrader: {level: 7, amount: 1} };
+    let Population__Colony_Stop = 
+        { worker:   {level: 7, amount: 0},
+          repairer: {level: 5, amount: 1},
+          upgrader: {level: 7, amount: 0} };
 
-	let Population__Colony_RCL_Low =
-            { worker:   {level: 3, amount: 2},
-              repairer: {level: 3, amount: 1},
-              upgrader: {level: 3, amount: 1} };
-	let Population__Colony_RCL_Mid =
-            { worker:   {level: 7, amount: 1},
-              repairer: {level: 5, amount: 1},
-              upgrader: {level: 7, amount: 2} };
-	let Population__Colony_RCL8 =
-			{ worker:   {level: 7, amount: 1, scale_level: false},
-              repairer: {level: 5, amount: 1} };
+    let Population__Mining_1S_Colony =
+        { burrower:  {level: 5, amount: 1},
+          carrier:   {level: 6, amount: 3},
+	      extractor: {level: 8, amount: 1} };
+    let Population__Mining_2S_Colony = 
+        { burrower:  {level: 6, amount: 1},
+          carrier:   {level: 7, amount: 3},
+		  extractor: {level: 8, amount: 1} };
+    let Population__Mining_1S_Remote =
+        { burrower:  {level: 5, amount: 1},
+          carrier:   {level: 7, amount: 2},
+          multirole: {level: 6, amount: 1},
+          reserver:  {level: 6, amount: 1} };
+    let Population__Mining_2S_Remote =
+        { burrower:  {level: 6, amount: 1},
+          carrier:   {level: 7, amount: 3},
+          multirole: {level: 6, amount: 1},
+          reserver:  {level: 6, amount: 1} };
 
-	let Population__Mining_RCL_Low =
-			{ burrower:  {level: 5, amount: 1},
-              carrier:   {level: 5, amount: 2} };
-	let Population__Mining_1S_Colony =
-			{ burrower:  {level: 5, amount: 1},
-              carrier:   {level: 6, amount: 2},
-			  extractor: {level: 8, amount: 1} };
-	let Population__Mining_2S_Colony =
-			{ burrower:  {level: 6, amount: 1},
-              carrier:   {level: 7, amount: 2},
-			  extractor: {level: 8, amount: 1} };
-	let Population__Mining_1S_Remote =
-			{ burrower:  {level: 5, amount: 1},
-              carrier:   {level: 7, amount: 2},
-              multirole: {level: 6, amount: 1},
-              reserver:  {level: 6, amount: 1} };
-	let Population__Mining_2S_Remote =
-			{ burrower:  {level: 6, amount: 1},
-              carrier:   {level: 7, amount: 3},
-              multirole: {level: 6, amount: 1},
-              reserver:  {level: 6, amount: 1} };
-
-	let Population__Industry =
-			{ courier:   {level: 5, amount: 1} };
-
+    let Population__Industry =
+        { courier:   {level: 5, amount: 1} };
 
 
     /* Colony #1, W18S43 */
