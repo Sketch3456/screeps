@@ -24,8 +24,8 @@ module.exports.loop = function () {
 
 	/* Auto-sell excess stockpile */
 	Hive.sellExcessResources({
-		O: { limit: 250000 },
-		H: { limit: 250000 },
+		O: { limit: 1 },
+		H: { limit: 1 },
 		U: { limit: 150000 },
 		L: { limit: 150000 },
 		Z: { limit: 150000 },
